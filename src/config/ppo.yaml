@@ -1,0 +1,24 @@
+project: "PPO"
+dtype: "bfloat16"
+seed: 42
+data:
+  rm_dataset: "imdb"
+training:
+  rm:
+    tokenizer_name_or_path: 'facebook/opt-350m'
+    model_name_or_path: 'facebook/opt-350m'
+    states_file: 'src/ckpt/rm/reward_model_epoch01.pt'
+    learning_rate: 5.0e-5
+    weight_decay: 0
+    betas: [0.9, 0.999]
+    max_norm: 1.0
+    batch_size: 8
+    eval_batch_size: 128
+    enable_memory_efficient_adamw: true
+    gradient_accumulation_steps: 8
+    num_train_epochs: 1
+    num_workers: 10,
+    max_len: 1024
+    eval_interval: 16
+  vm:
+  pm:

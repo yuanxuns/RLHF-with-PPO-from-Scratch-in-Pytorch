@@ -1,0 +1,5 @@
+*.ipynb
+src/ckpt/*
+src/logs/*
+*__pycache__
+*.pyc
