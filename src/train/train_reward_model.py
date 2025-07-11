@@ -77,7 +77,7 @@ def train(config):
       # tb_writer.flush()
       
       if step % config["training"]["rm"]["eval_interval"] == 0:
-        run_eval(model, test_dataloader, device, tb_writer, step, config["training"]["rm"]["batch_size"])
+        run_eval(model, test_dataloader, device, tb_writer, step, config["training"]["rm"]["eval_batch_size"])
       
         
       step += 1

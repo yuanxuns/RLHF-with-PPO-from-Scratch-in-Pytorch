@@ -12,13 +12,13 @@ training:
     weight_decay: 0
     betas: [0.9, 0.999]
     max_norm: 1.0
-    batch_size: 8
-    eval_batch_size: 128
+    batch_size: 6
+    eval_batch_size: 64
     enable_memory_efficient_adamw: true
-    gradient_accumulation_steps: 8
+    gradient_accumulation_steps: 16
     num_train_epochs: 1
     num_workers: 10,
     max_len: 1024
-    eval_interval: 16
+    eval_interval: 500
   vm:
   pm:

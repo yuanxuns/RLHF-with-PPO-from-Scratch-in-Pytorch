@@ -43,7 +43,7 @@ def build_dataloader(tokenizer: AutoTokenizer, config) -> Dict[str, DataLoader]:
   test_dataset = convert_to_reward_model_dataset(dataset["test"], tokenizer, config["training"]["rm"]["max_len"])
   
   train_dataloader = DataLoader(train_dataset, shuffle=True, batch_size=config["training"]["rm"]["batch_size"])
-  test_dataloader = DataLoader(test_dataset, batch_size=config["training"]["rm"]["batch_size"])
+  test_dataloader = DataLoader(test_dataset, batch_size=config["training"]["rm"]["eval_batch_size"])
   
   return {"train_dataloader": train_dataloader, "test_dataloader": test_dataloader}
   
