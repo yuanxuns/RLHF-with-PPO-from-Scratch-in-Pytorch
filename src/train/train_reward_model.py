@@ -10,6 +10,7 @@ import torch.nn.functional as F
 from datetime import datetime
 from src.eval.eval import run_eval
 from pathlib import Path
+import gc
 
 def train(config):
   seed_everything(config["seed"])
@@ -45,14 +46,17 @@ def train(config):
     step = states["step"]
     num_epoch = states["num_epoch"]
     optimizer.load_state_dict(states["optimizer_state_dict"])
-    print(f"Loaded states from {config['training']['rm']['states_file']}")
+    print(f"Loaded states from {config['training']['rm']['states_file']}. step: {step}. num_epoch: {num_epoch}")
   else:
     print(f"States file {config['training']['rm']['states_file']} does not exist. Starting from scratch.")
     
   for epoch in range(config["training"]["rm"]["num_train_epochs"]):
-    batch_iterator = tqdm(train_dataloader, desc=f"Epoch {epoch+1}", leave=False)
+    batch_iterator = tqdm(train_dataloader, desc=f"Epoch {num_epoch+1}", leave=False)
     
     for batch in batch_iterator:
+      gc.collect()
+      torch.cuda.empty_cache()
+      
       model.train()
       
       chosen_input_ids = batch["chosen_input_ids"].to(device)
@@ -81,9 +85,8 @@ def train(config):
       
         
       step += 1
-    num_epoch += 1
-      
-    path = f'src/ckpt/rm/reward_model_epoch{epoch:02d}'
+    
+    path = f'src/ckpt/rm/reward_model_epoch{num_epoch:02d}'
     model.save_pretrained(path)
     file_name = f"{path}/states.pt"
     torch.save(
@@ -93,4 +96,5 @@ def train(config):
                 "optimizer_state_dict": optimizer.state_dict(),
             },
             file_name,
-        )      
+        ) 
+    num_epoch += 1     

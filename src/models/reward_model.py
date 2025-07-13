@@ -13,7 +13,7 @@ def get_reward_model(model_name_or_path: str, device: torch.device, dtype:torch.
         PreTrainedModel: The reward model for the specified model.
     """
 
-
+    print(f"Building reward model from {model_name_or_path}")
     return AutoModelForSequenceClassification.from_pretrained(
         model_name_or_path,
         torch_dtype=dtype, 

@@ -5,7 +5,7 @@ from datasets import load_dataset
 from torch.utils.data import DataLoader
 from typing import Dict
 
-def convert_to_reward_model_dataset(dataset: Dataset, tokenizer: AutoTokenizer, max_len: int) -> Dataset:
+def convert_to_reward_model_dataset(dataset: Dataset, tokenizer: AutoTokenizer, max_len: int, max_size_per_category: int = None) -> Dataset:
   df = dataset.to_pandas()
   negative_df = df[df['label']==0]
   positive_df = df[df['label']==1]
@@ -16,6 +16,11 @@ def convert_to_reward_model_dataset(dataset: Dataset, tokenizer: AutoTokenizer, 
       frac=1, random_state=0).reset_index(
       drop=True).drop(columns=['label']).rename(
       columns={'text': 'chosen'})
+  if max_size_per_category is not None:
+    negative_df = negative_df.sample(
+        n=min(len(negative_df), max_size_per_category), random_state=0).reset_index(drop=True)
+    positive_df = positive_df.sample(
+        n=min(len(positive_df), max_size_per_category), random_state=0).reset_index(drop=True)
   joined_df = negative_df.join(positive_df)
   
   rejected_encoded = tokenizer(joined_df['rejected'].tolist(),
@@ -40,7 +45,7 @@ def build_dataloader(tokenizer: AutoTokenizer, config) -> Dict[str, DataLoader]:
   del dataset['unsupervised']
   
   train_dataset = convert_to_reward_model_dataset(dataset["train"], tokenizer, config["training"]["rm"]["max_len"])
-  test_dataset = convert_to_reward_model_dataset(dataset["test"], tokenizer, config["training"]["rm"]["max_len"])
+  test_dataset = convert_to_reward_model_dataset(dataset["test"], tokenizer, config["training"]["rm"]["max_len"], config["training"]["rm"]["max_eval_size_per_category"])
   
   train_dataloader = DataLoader(train_dataset, shuffle=True, batch_size=config["training"]["rm"]["batch_size"])
   test_dataloader = DataLoader(test_dataset, batch_size=config["training"]["rm"]["eval_batch_size"])

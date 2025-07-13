@@ -6,8 +6,8 @@ data:
 training:
   rm:
     tokenizer_name_or_path: 'facebook/opt-350m'
-    model_name_or_path: 'facebook/opt-350m'
-    states_file: 'src/ckpt/rm/reward_model_epoch01.pt'
+    model_name_or_path: 'src/ckpt/rm/reward_model_epoch02'
+    states_file: 'src/ckpt/rm/reward_model_epoch02/states.pt'
     learning_rate: 5.0e-5
     weight_decay: 0
     betas: [0.9, 0.999]
@@ -16,9 +16,10 @@ training:
     eval_batch_size: 64
     enable_memory_efficient_adamw: true
     gradient_accumulation_steps: 16
-    num_train_epochs: 1
+    num_train_epochs: 3
     num_workers: 10,
     max_len: 1024
+    max_eval_size_per_category: 640
     eval_interval: 500
   vm:
   pm:
