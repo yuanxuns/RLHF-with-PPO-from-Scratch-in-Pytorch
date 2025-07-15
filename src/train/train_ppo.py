@@ -12,6 +12,8 @@ import sys
 from src.models.memory_efficient_adam import MemoryEfficientAdamW
 from tqdm import tqdm
 import gc
+from torch.utils.tensorboard.writer import SummaryWriter
+from datetime import datetime
 
 def tokenize(sample, tokenizer, num_input_tokens: int):
     sample['input_ids'] = tokenizer.encode(sample['text'])[:num_input_tokens]
@@ -37,8 +39,10 @@ def build_dataloader(ppo_tokenizer, config):
         "num_input_tokens": config["training"]["ppo"]["num_input_tokens"],
       }    
   }
-  tokenized_dataset_train = ds_train.map(tokenize, **map_kwargs).set_format(type='torch')
-  tokenized_dataset_val = ds_val.map(tokenize, **map_kwargs).set_format(type='torch')  
+  tokenized_dataset_train = ds_train.map(tokenize, **map_kwargs)
+  tokenized_dataset_val = ds_val.map(tokenize, **map_kwargs)
+  tokenized_dataset_train.set_format(type='torch')
+  tokenized_dataset_val.set_format(type='torch') 
   
   batch_size = config["training"]["ppo"]["batch_size"]
   train_dataloader = DataLoader(tokenized_dataset_train, batch_size=batch_size, collate_fn=collator, shuffle=True)
@@ -69,18 +73,22 @@ class ValueHead(nn.Module):
     return self.value_head(hidden_states)
     
 class ModelForCausalLMWithValueHead(nn.Module):
-  def __init__(self, model_path, torch_type):
+  def __init__(self, model_path, torch_dtype):
     super().__init__()
-    self.llm = AutoModelForCausalLM.from_pretrained(model_path, torch_type=torch_type)
+    self.llm = AutoModelForCausalLM.from_pretrained(model_path, torch_dtype=torch_dtype)
     self.value_head = ValueHead(self.llm.config, self.llm.device)
     
   def forward(self, input_ids, attention_mask):
-    llm_outputs = self.llm.forward(input_ids, attention_mask=attention_mask,ouput_hidden_states=True)
+    llm_outputs = self.llm.forward(input_ids, attention_mask=attention_mask, output_hidden_states=True)
     llm_logits = llm_outputs.logits
     last_hidden_state = llm_outputs.hidden_states[-1]
     values = self.value_head(last_hidden_state).squeeze(-1)
     return llm_logits, values #(B, seq_len, vocab_size), (B)
-
+  
+  def generate(self, *args, **kwargs):
+      return self.llm.generate(*args, **kwargs)
+    
+    
 def get_preloaded_models_and_optimizer(config, dtype, device):
   rm_file_path = Path(config["training"]["ppo"]["pretrained_reward_model_path"])
   if not rm_file_path.exists():
@@ -254,13 +262,16 @@ def train(config):
   ref_model = info["ref_model"]
   optimizer = info["optimizer"]
   step = info["step"]
-  num_epoch = info["epoch"]
+  num_epoch = info["num_epoch"]
   generation_kwargs = dict(
     config["training"]["ppo"]["generation_kwargs"],
     eos_token_id=ppo_tokenizer.eos_token_id,
     pad_token_id=ppo_tokenizer.pad_token_id
   )
   
+  current_time = datetime.now().strftime(r"%m%d-%H%M")  
+  tb_writer = SummaryWriter(log_dir=f"src/logs/{current_time}")
+ 
   for epoch in range(config["training"]["ppo"]["num_train_epochs"]):
     batch_iterator = tqdm(train_dataloader, desc=f"Epoch {num_epoch+1}", leave=False)
     for batch in batch_iterator:
@@ -297,11 +308,12 @@ def train(config):
       )
       with torch.no_grad():
         reward_model.to(device).eval()
-        scores = torch.sigmoid(reward_model(rm_encoded_query_response["input_ids"], rm_encoded_query_response["attention_mask"]).logits.squeeze(1))
+        scores = torch.sigmoid(reward_model(rm_encoded_query_response["input_ids"].to(device), rm_encoded_query_response["attention_mask"].to(device)).logits.squeeze(1))
         scores = 2 * (scores - 0.5)
         reward_model.cpu()
       gc.collect()
       torch.cuda.empty_cache()
+      tb_writer.add_scalar("avg rewards", scores.mean().item(), step)
 
 
       info = compute_rewards(model, ref_model, attention_mask, query_response_ids, query_ids, \
@@ -329,15 +341,39 @@ def train(config):
       # batch, seq - 1
       new_logp = torch.gather(new_log_softmax, dim=-1, index=labels.unsqueeze(-1)).squeeze(-1)       
       
-      info = compute_loss(logp, values, new_logp, new_values, masks, advantages, q_vals, config)
+      info = compute_loss(logp, values, new_logp, new_values[:,:-1], masks, advantages, q_vals, config)
       loss = info["loss"]
       v_loss = info["v_loss"]
-      optimizer.zero_grad()
       loss.backward()
-      optimizer.step()
+      torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm = config["training"]["ppo"]["max_norm"])
+
+      if step % config["training"]["ppo"]["gradient_accumulation_steps"] == 0:
+        optimizer.step()
+        optimizer.zero_grad()  
+        max_memory = torch.cuda.max_memory_allocated()
+        tb_writer.add_scalar("max_memory(GB)", max_memory / 1024 ** 3, step)
+        torch.cuda.reset_peak_memory_stats()
+        
+      batch_iterator.set_postfix({"loss": f"{loss.item():6.3f}"})  
+      tb_writer.add_scalar("loss", loss.item(), step)
+      tb_writer.add_scalar("v_loss", v_loss.item(), step)
       
+      # tb_writer.flush()        
+        
       step += 1
-    
+
+
+
+    file_name = f'src/ckpt/ppo/ppo_model_epoch{num_epoch:02d}_states.pt'
+    torch.save(
+            {  
+               "step": step,
+                "num_epoch": num_epoch,
+                "optimizer_state_dict": optimizer.state_dict(),
+                "model_state_dict": model.state_dict(),
+            },
+            file_name,
+        )     
     num_epoch += 1     
       
       
