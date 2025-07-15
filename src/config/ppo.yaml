@@ -26,7 +26,7 @@ training:
     tokenizer_name_or_path: 'TinyLlama/TinyLlama-1.1B-step-50K-105b'
     model_name_or_path: 'TinyLlama/TinyLlama-1.1B-step-50K-105b'
     pretrained_reward_model_path: 'src/ckpt/rm/reward_model_epoch02'
-    states_file: 'src/ckpt/ppo/ppo_epoch02_states.pt'
+    states_file: None #'src/ckpt/ppo/ppo_model_epoch02_states.pt'
     min_num_words: 15
     num_input_tokens: 10
     batch_size: 16

@@ -297,12 +297,13 @@ def train(config):
           batch_first=True,
           padding_value=ppo_tokenizer.pad_token_id,
       ).to(device)
-
-      query_response_ids = model.generate(
-          input_ids=query_ids,
-          attention_mask=query_attention_masks,
-          **generation_kwargs
-      )
+      
+      with torch.no_grad():
+        query_response_ids = model.generate(
+            input_ids=query_ids,
+            attention_mask=query_attention_masks,
+            **generation_kwargs
+        )
 
       # response_ids = query_response_ids[:, query_ids.shape[1]:]
       attention_mask = query_response_ids.not_equal(ppo_tokenizer.pad_token_id).long()
