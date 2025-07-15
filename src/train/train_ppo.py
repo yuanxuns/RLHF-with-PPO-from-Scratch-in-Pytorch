@@ -378,13 +378,14 @@ def train(config):
 
 
 
-    file_name = f'src/ckpt/ppo/ppo_model_epoch{num_epoch:02d}_states.pt'
+    file_name = f'src/ckpt/ppo/ppo_model_epoch{num_epoch:02d}_states_{current_time}.pt'
     torch.save(
             {  
                "step": step,
                 "num_epoch": num_epoch,
                 "optimizer_state_dict": optimizer.state_dict(),
                 "model_state_dict": model.state_dict(),
+                "config": config,
             },
             file_name,
         )     
