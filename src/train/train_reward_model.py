@@ -6,14 +6,28 @@ from src.models.utils import get_device, seed_everything, DTYPE_MAP
 from tqdm import tqdm
 import torch
 from torch.utils.tensorboard.writer import SummaryWriter
-import torch.nn.functional as F
 from datetime import datetime
 from src.eval.eval import run_rm_eval
 from pathlib import Path
 import gc
+from src.models.reward_model import compute_loss
 
 
 def train(config):
+    """
+    Train the reward model using the given configuration.
+
+    This function trains the reward model using the given configuration, saves the
+    model's state and optimizer's state to a file at the end of each epoch, and logs
+    evaluation metrics to a TensorBoard writer.
+
+    Args:
+        config (Dict[str, Any]): Configuration object containing hyperparameters,
+            model paths, and other settings.
+
+    Returns:
+        None
+    """
     seed_everything(config["seed"])
 
     tokenizer = get_tokenizer(config["training"]["rm"]["tokenizer_name_or_path"])
@@ -66,20 +80,7 @@ def train(config):
 
             model.train()
 
-            chosen_input_ids = batch["chosen_input_ids"].to(device)
-            chosen_attention_mask = batch["chosen_attention_mask"].to(device)
-            rejected_input_ids = batch["rejected_input_ids"].to(device)
-            rejected_attention_mask = batch["rejected_attention_mask"].to(device)
-
-            # (B, 1)
-            r_chosen = model(
-                chosen_input_ids, attention_mask=chosen_attention_mask
-            ).logits
-            r_rejected = model(
-                rejected_input_ids, attention_mask=rejected_attention_mask
-            ).logits
-
-            loss = -F.logsigmoid(r_chosen - r_rejected).mean()
+            loss = compute_loss(batch, model, device)
             loss.backward()
             torch.nn.utils.clip_grad_norm_(
                 model.parameters(), max_norm=config["training"]["rm"]["max_norm"]

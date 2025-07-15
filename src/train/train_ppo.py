@@ -70,6 +70,7 @@ def train(config):
             torch.cuda.empty_cache()
             model.train()
 
+            # Generate responses for a batch of queries.
             query_ids = torch.nn.utils.rnn.pad_sequence(
                 batch["input_ids"],
                 batch_first=True,
@@ -89,7 +90,7 @@ def train(config):
                     **generation_kwargs,
                 )
 
-            # response_ids = query_response_ids[:, query_ids.shape[1]:]
+            # Computes rewards for a batch of queries and responses.
             attention_mask = query_response_ids.not_equal(
                 ppo_tokenizer.pad_token_id
             ).long()
@@ -132,6 +133,7 @@ def train(config):
             gc.collect()
             torch.cuda.empty_cache()
 
+            # Computes advantage estimates for a batch of queries and responses.
             info = compute_advantage(rewards, values, masks)
             advantages, q_vals = info["advantages"], info["q_vals"]
 
@@ -151,6 +153,7 @@ def train(config):
                 new_log_softmax, dim=-1, index=labels.unsqueeze(-1)
             ).squeeze(-1)
 
+            #  Computes loss.
             info = compute_loss(
                 logp,
                 values,
@@ -168,6 +171,7 @@ def train(config):
                 model.parameters(), max_norm=config["training"]["ppo"]["max_norm"]
             )
 
+            # Updates the model parameters.
             if step % config["training"]["ppo"]["gradient_accumulation_steps"] == 0:
                 optimizer.step()
                 optimizer.zero_grad()
@@ -175,6 +179,7 @@ def train(config):
                 tb_writer.add_scalar("max_memory(GB)", max_memory / 1024**3, step)
                 torch.cuda.reset_peak_memory_stats()
 
+            # Logs the loss and average rewards.
             batch_iterator.set_postfix(
                 {
                     "loss": f"{loss.item():.3f}",
