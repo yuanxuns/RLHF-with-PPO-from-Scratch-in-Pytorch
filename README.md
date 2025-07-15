@@ -62,7 +62,7 @@ ______________________
 - **Critic** stabilizes training with advantage estimation.
 
 
-## 4. Reward Model and Polilcy Model Training
+## 4. Reward Model and Policy Model Training
 
 4.1 Update training parameters in
 ```
@@ -80,7 +80,19 @@ python run_ppo_trainer.py
 ```
 
 ## 5. Training Results
+5.1 Reward Model Training Tensorboard
+Reward model loss
+<img width="963" height="421" alt="rm_loss" src="https://github.com/user-attachments/assets/bc336a47-6b7c-439e-9a64-d33550ad6e3e" />
 
+5.2 Policy and Value Models (PPO) Training Tensorboard
+PPO loss
+<img width="1064" height="437" alt="training_loss" src="https://github.com/user-attachments/assets/d91b240b-4760-4822-b65c-6c2ad9b2ba72" />
+Value network TD error
+<img width="1149" height="418" alt="td_error" src="https://github.com/user-attachments/assets/cbd9a8c1-828b-45bc-91cd-f94aeebfd323" />
+Average generated sequences' rewards during training
+<img width="1157" height="436" alt="avg_rewards" src="https://github.com/user-attachments/assets/410537ef-ad8c-4a00-8581-abe409f14859" />
+Average generated sequences' rewards during evaluation
+<img width="1160" height="445" alt="eval_avg_rewards" src="https://github.com/user-attachments/assets/3eb2f604-90b0-48e6-b6f3-d8558c14adb1" />
 
 ## 6. References
 
