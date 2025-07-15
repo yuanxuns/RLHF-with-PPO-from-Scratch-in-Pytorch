@@ -42,10 +42,13 @@ Once the reward model is trained:
    - Minimize mean-squared TD-error.
     
 
-2.5 **Pseudocode**  
+2.5 **Pseudocode and Implementation Details**  
 <p align="center">     
 <img width="676" height="427" alt="image" src="https://github.com/user-attachments/assets/b5653d3e-8709-4fe4-96f0-8708592b1ceb" />
 </p>
+  - Value network is implemented as an additional head on top of the LLM backbone
+  - Use a memory-efficient AdamW optimizer that sets states on CPU
+  - Training is done on one Nvidia 3060 GPU
 
 ______________________
 
