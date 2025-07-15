@@ -14,6 +14,7 @@ from tqdm import tqdm
 import gc
 from torch.utils.tensorboard.writer import SummaryWriter
 from datetime import datetime
+from src.eval.eval import run_ppo_eval
 
 def tokenize(sample, tokenizer, num_input_tokens: int):
     sample['input_ids'] = tokenizer.encode(sample['text'])[:num_input_tokens]
@@ -31,6 +32,12 @@ def build_dataloader(ppo_tokenizer, config):
   ds_train = ds_train.filter(lambda x: len(x['text'].split(' ')) > config["training"]["ppo"]["min_num_words"])
   ds_val = ds_val.filter(lambda x: len(x['text'].split(' ')) > config["training"]["ppo"]["min_num_words"])
 
+  # Limit validation set to a maximum number of samples
+  max_val_samples = config["training"]["ppo"]["max_eval_size"]
+  if max_val_samples is not None:
+      ds_val = ds_val.select(range(min(max_val_samples, len(ds_val))))
+  print(f"Validation dataset size: {len(ds_val)}")
+  
   map_kwargs = {
       "batched": False,
       "remove_columns": ['text', 'label'],
@@ -44,9 +51,8 @@ def build_dataloader(ppo_tokenizer, config):
   tokenized_dataset_train.set_format(type='torch')
   tokenized_dataset_val.set_format(type='torch') 
   
-  batch_size = config["training"]["ppo"]["batch_size"]
-  train_dataloader = DataLoader(tokenized_dataset_train, batch_size=batch_size, collate_fn=collator, shuffle=True)
-  val_dataloader = DataLoader(tokenized_dataset_val, batch_size=batch_size, collate_fn=collator, shuffle=True)
+  train_dataloader = DataLoader(tokenized_dataset_train, batch_size=config["training"]["ppo"]["batch_size"], collate_fn=collator, shuffle=True)
+  val_dataloader = DataLoader(tokenized_dataset_val, batch_size=config["training"]["ppo"]["eval_batch_size"], collate_fn=collator, shuffle=True)
   return {"train_dataloader": train_dataloader,
           "val_dataloader": val_dataloader}
 
@@ -115,7 +121,7 @@ def get_preloaded_models_and_optimizer(config, dtype, device):
   )
   
   step = 1
-  num_epoch = 1
+  num_epoch = 0
   file_path = Path(config["training"]["ppo"]["states_file"])
   if file_path.exists():
     states = torch.load(config["training"]["ppo"]["states_file"])
@@ -273,7 +279,8 @@ def train(config):
   tb_writer = SummaryWriter(log_dir=f"src/logs/{current_time}")
  
   for epoch in range(config["training"]["ppo"]["num_train_epochs"]):
-    batch_iterator = tqdm(train_dataloader, desc=f"Epoch {num_epoch+1}", leave=False)
+    num_epoch += 1
+    batch_iterator = tqdm(train_dataloader, desc=f"Epoch {num_epoch}", leave=False)
     for batch in batch_iterator:
       gc.collect()
       torch.cuda.empty_cache()
@@ -354,12 +361,14 @@ def train(config):
         tb_writer.add_scalar("max_memory(GB)", max_memory / 1024 ** 3, step)
         torch.cuda.reset_peak_memory_stats()
         
-      batch_iterator.set_postfix({"loss": f"{loss.item():6.3f}"})  
+      batch_iterator.set_postfix({"loss": f"{loss.item():.3f}", "avg_rewards": f'{scores.mean().item():.3f}'})  
       tb_writer.add_scalar("loss", loss.item(), step)
       tb_writer.add_scalar("v_loss", v_loss.item(), step)
+      if step % config["training"]["ppo"]["eval_interval"] == 0:
+        run_ppo_eval(model, reward_model, val_dataloader, ppo_tokenizer, rm_tokenizer, generation_kwargs, tb_writer, device, step)
+            
       
-      # tb_writer.flush()        
-        
+      # tb_writer.flush()          
       step += 1
 
 
@@ -374,7 +383,6 @@ def train(config):
             },
             file_name,
         )     
-    num_epoch += 1     
       
       
       

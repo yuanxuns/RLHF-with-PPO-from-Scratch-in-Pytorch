@@ -8,7 +8,7 @@ import torch
 from torch.utils.tensorboard.writer import SummaryWriter
 import torch.nn.functional as F
 from datetime import datetime
-from src.eval.eval import run_eval
+from src.eval.eval import run_rm_eval
 from pathlib import Path
 import gc
 
@@ -81,7 +81,7 @@ def train(config):
       # tb_writer.flush()
       
       if step % config["training"]["rm"]["eval_interval"] == 0:
-        run_eval(model, test_dataloader, device, tb_writer, step, config["training"]["rm"]["eval_batch_size"])
+        run_rm_eval(model, test_dataloader, device, tb_writer, step, config["training"]["rm"]["eval_batch_size"])
       
         
       step += 1
