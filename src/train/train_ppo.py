@@ -367,7 +367,12 @@ def train(config):
       if step % config["training"]["ppo"]["eval_interval"] == 0:
         run_ppo_eval(model, reward_model, val_dataloader, ppo_tokenizer, rm_tokenizer, generation_kwargs, tb_writer, device, step)
             
-      
+      # Updates the reference model periodically.
+      if step % config["training"]["ppo"]["ref_model_update_interval"] == 0:
+        ref_model.load_state_dict(model.state_dict())
+        ref_model.eval().cpu()
+        print(f"Updated reference model at step {step}")
+                  
       # tb_writer.flush()          
       step += 1
 
