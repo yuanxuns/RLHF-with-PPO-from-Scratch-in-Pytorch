@@ -3,6 +3,7 @@ import numpy as np
 import random
 from transformers import set_seed
 
+
 def get_device() -> torch.device:
     """
     Get the device to use for training.
@@ -23,6 +24,7 @@ DTYPE_MAP = {
     "float16": torch.float16,
     "float32": torch.float32,
 }
+
 
 def seed_everything(seed=2003):
     """
