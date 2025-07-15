@@ -2,12 +2,12 @@
 
 RLHF is a two-stage process designed to fine-tune language models to align with human preferences. It involves:
 
-### 1. Reward Model Training 🎯
+### 1. Reward Model Training 
 
-1. **Collect preference data**  
+1.1 **Collect preference data**  
    - Human annotators compare pairs (or triples) of completions and determine the preference ranking based on criteria like usefulness, clarity, and tone. In this project, we use imdb dataset https://huggingface.co/datasets/stanfordnlp/imdb.
 
-2. **Train the reward model**  
+1.2 **Train the reward model**  
    - A pretrained encoder or LLM is augmented with a scalar regression head.
    - For each pair `(prompt, y_winner, y_loser)`, define a cross-entropy loss:
 <p align="center">     
@@ -19,10 +19,10 @@ RLHF is a two-stage process designed to fine-tune language models to align with 
 
 Once the reward model is trained:
 
-1. **Generate rollouts**  
+2.1 **Generate rollouts**  
    - Sample prompts from a dataset, generate completions using the current policy model, and score each with the reward model.
 
-2. **Add KL penalty**  
+2.2 **Add KL penalty**  
    - To prevent the policy model from drifting too far from the reference model, include a per-token KL-divergence penalty in the reward:
 
 <p align="center">     
@@ -30,7 +30,7 @@ Once the reward model is trained:
 </p>
 
 
-3. **Compute advantages and apply PPO**  
+2.3 **Compute advantages and apply PPO**  
    - Use a critic value function netword `V(x)` to estimate value, and compute advantages.
    - Optimize policy using the clipped surrogate objective.
 <p align="center">     
@@ -38,17 +38,19 @@ Once the reward model is trained:
 </p>     
 
 
-4. **Update critic (value function)**  
+2.4 **Update critic (value function)**  
    - Minimize mean-squared TD-error.
     
 
-5. **Pseudocode**  
+2.5 **Pseudocode**  
 <p align="center">     
 <img width="676" height="427" alt="image" src="https://github.com/user-attachments/assets/b5653d3e-8709-4fe4-96f0-8708592b1ceb" />
 </p>
 
+______________________
 
-## Pipeline Overview
+
+## 3. Pipeline Overview
 
 | Stage       | Input                         | Output                                 |
 |-------------|-------------------------------|----------------------------------------|
@@ -60,22 +62,27 @@ Once the reward model is trained:
 - **Critic** stabilizes training with advantage estimation.
 
 
+## 4. Reward Model and Polilcy Model Training
 
-## 📚 Optional Variations & Notes
+4.1 Update training parameters in
+```
+src/config/ppo.yaml
+```
 
-- **Reward whitening/normalization**, handling EOS tokens, and padding are critical for stability :contentReference[oaicite:8]{index=8}.
-- **PPO-max** introduces strengthened policy constraints to improve stability in long training :contentReference[oaicite:9]{index=9}.
-- Alternatives like **Direct Preference Optimization (DPO)** and **Constitutional AI** offer bypasses to explicit reward modeling :contentReference[oaicite:10]{index=10}.
+4.2 Train the reward model via
+```
+python run_reward_model_trainer.py
+```
+
+4.3 Train the policy network via
+```
+python run_ppo_trainer.py
+```
+
+## 5. Training Results
 
 
-
-## References
-
-https://github.com/ash80/RLHF_in_notebooks
-
-https://www.youtube.com/watch?v=11M_kfuPJ5I
-
-https://github.com/hkproj/rlhf-ppo
+## 6. References
 
 PPO paper: Schulman, J., Wolski, F., Dhariwal, P., Radford, A. and Klimov, O., 2017. Proximal policy optimization algorithms. arXiv preprint arXiv:1707.06347. - https://arxiv.org/abs/1707.06347
 
@@ -88,3 +95,9 @@ https://spinningup.openai.com/en/latest/algorithms/ppo.html
 https://arxiv.org/pdf/2403.17031
 
 https://arxiv.org/pdf/2203.02155
+
+https://github.com/ash80/RLHF_in_notebooks
+
+https://www.youtube.com/watch?v=11M_kfuPJ5I
+
+https://github.com/hkproj/rlhf-ppo
