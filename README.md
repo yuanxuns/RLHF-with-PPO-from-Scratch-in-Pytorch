@@ -49,6 +49,8 @@ Once the reward model is trained:
 
   - Value network is implemented as an additional head on top of the LLM backbone
   
+  - Handles different tokenizers of the reward model and the policy/value model
+  
   - Use a memory-efficient AdamW optimizer that sets states on CPU
     
   - Training is done on one Nvidia 3060 GPU
