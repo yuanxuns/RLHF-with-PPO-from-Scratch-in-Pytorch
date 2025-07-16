@@ -93,6 +93,7 @@ Reward model loss
 <img width="963" height="421" alt="rm_loss" src="https://github.com/user-attachments/assets/bc336a47-6b7c-439e-9a64-d33550ad6e3e" />
 
 5.2 Policy and Value Models (PPO) Training Tensorboard
+
 PPO loss
 <img width="1064" height="437" alt="training_loss" src="https://github.com/user-attachments/assets/d91b240b-4760-4822-b65c-6c2ad9b2ba72" />
 Value network TD error
